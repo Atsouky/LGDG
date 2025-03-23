@@ -1,0 +1,18 @@
+Nom,     Image,                  Pv, Mp, Pa, Pw, Classe
+
+Ariane,  data/image/Ariane.png,  10, 3,  35, 2,  Attaquant
+Aude,    data/image/Aude.png,    40, 3,  10, 1,  Défenseur  
+Dimitri, data/image/Dimitri.png, 35, 3.5,5,  1,  Défenseur
+Edwin,   data/image/Edwin.png,   25, 1,  10, 1,  Neutre
+Eleo,    data/image/Eleo.png,    20, 3,  20, 1,  Défenseur
+Lié,     data/image/Lie.png,     15, 2,  30, 4,  Attaquant
+Liz,     data/image/Liz.png,     30, 2,  10, 3,  Neutre
+LomaMalo,data/image/LomaMalo.png,20, 1,  20, 0,  Neutre
+MaiRose, data/image/MaiRose.png, 25, 3,  20, 2,  Pouvoir
+Mike,    data/image/Mike.png,    20, 4,  25, 3,  Pouvoir
+Papuchon,data/image/Papuchon.png,20, 0,  5,  0,  Piège
+Sofia,   data/image/Sofia.png,   25, 1,  25, 3,  Neutre
+Sosara,  data/image/Sosara.png,  20, 3.5,20, 2,  Pouvoir
+Stones,  data/image/Stones.png,  2,  3,  30, 1,  Robot
+Vivalie, data/image/Vivalie.png, 3,  4,  10, 0,  Robot
+Zéréphyr,data/image/Zerephyr.png,10, 3,  35, 2,  Attaquant
