@@ -18,35 +18,63 @@ class Server:
         
         while True:
             client, address = self.serveur.accept()
-            Client = {'ip':address, 'client':client , 'name':None, 'scale': None}
+            Client = {'ip':address, 'client':client , 'name':None, 'scale': None, 'isJoueur': None }
             self.clients.append(Client)
             Thread(target=self.handle_new_client, args=(Client, )).start()
     
     def broadcast(self, message):
         for client in self.clients:
                 client['client'].send(pickle.dumps(message))
+                
+    def broadcast_to(self, message, cliente):
+        
+        for client in self.clients:
+            if client['ip'] == cliente['ip']:
+                message.data['camps'] = client['isJoueur']
+                message.data['is_hiden'] = False
+                client['client'].send(pickle.dumps(message))
+                
+            else:
+                message.data['is_hiden'] = True
+                client['client'].send(pickle.dumps(message))
+            
+    
     def Send(self, message, client):
         client['client'].send(pickle.dumps(message))
     def receve(self, client):
-        global pioche
+        global pioche, nb_joueurs
         while True:
             message = pickle.loads(client['client'].recv(2048))
+            
             if message == 'q':
                 self.Send('q',client)
                 nb_joueurs -= 1
                 self.clients.remove(client)
                 break
+            
             elif message[0] == '?':
                 client['scale'] = float(message.split(' ')[1])
                 print(client['scale'])  
+                
             elif message[0] == '¤':
-                if message == '¤pioche':
-                    message = pioche.piocher()
-                    self.broadcast(message)
-                elif message == '¤move':
-                    name , x , y = message.split(' ')
-                    carte_piocher[name].x , carte_piocher[name].y = x , y
-                    self.broadcast(carte_piocher[name])
+                
+                if message.split(' ')[0] == '¤pioche':
+                    print(message)
+                    messages = pioche.piocher()
+                    for i in self.clients:
+                        if str(i['isJoueur']) == message.split(' ')[1]:
+                            self.broadcast_to(messages,i)
+                            
+                if isinstance(message, dict):
+                    if message["type"] == 'move':
+                        name , x, y = message['carte'].name, message['carte'].x ,message['carte'].y
+                        carte_piocher[name].x , carte_piocher[name].y = x , y
+                        di={
+                            'carte': carte_piocher[name],
+                            'type': 'move',
+                            'isJoueur': message['isJoueur']
+                        }
+                        self.broadcast(di)
                     
             
             
@@ -61,6 +89,7 @@ class Server:
             
             
     def handle_new_client(self, client):
+        global nb_joueurs
         print(f'Connection from {client["ip"]}')
         
         self.Send('?scale',client)
@@ -68,6 +97,7 @@ class Server:
             message = pickle.loads(client['client'].recv(2048))
             client['scale'] = message
         nb_joueurs += 1
+        client['isJoueur'] = nb_joueurs
         self.Send('¤j '+str(nb_joueurs),client)
         Thread(target=self.receve, args=(client, )).start()
         self.broadcast(f'{client["ip"]} connected')
@@ -116,7 +146,7 @@ class Pioche:
         if self.cartes:
             carte = self.cartes.pop()
             carte.x, carte.y=self.win_w//2+200,0
-            carte_piocher[str(carte.name)] = carte
+            carte_piocher[str(carte.data['name'])] = carte
             return carte
         print("La pioche est vide")
         return None
@@ -148,15 +178,16 @@ def load_carde(scale):
 
 carte_piocher = {}
 
-
+from pyngrok import ngrok
 def main():
     global pioche
+    
     scale = 0.10
     cartes = load_carde(scale)
     win_w = 1366
     pioche = Pioche(cartes,scale,win_w)
-
-    server = Server('127.0.0.1', 5555)
+    localhost = '127.0.0.1'
+    server = Server(localhost, 5555)
     Thread(target=server.listen).start()
     
     

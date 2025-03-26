@@ -11,14 +11,15 @@ import pickle
 
 
 class Carte:
-    def __init__(self, x, y, name, image, pv, mp, pa, pw, classe, lien=[], camps=None, pw_value=None,is_Stratège=False, is_hiden=True, scale=0.25):
+    def __init__(self, x, y, name, image, pv, mp, pa, pw, classe, lien=[], camps=None, pw_value=None,is_Stratège=False, is_hiden=False, scale=0.25):
         self.x = x
         self.y = y
         self.name = name
         self.imagePath = image
         self.image = pygame.image.load(image)
         self.image = pygame.transform.scale(self.image, (self.image.get_width() * scale, self.image.get_height() * scale))
-        self.dos = pygame.image.load('data/dos/DosCarte.png')
+        self.dos = pygame.image.load('data/dos/DosPioche.png')
+        self.dos = pygame.transform.scale(self.dos, (self.dos.get_width() * scale//1.25, self.dos.get_height() * scale//1.25))
         self.width = self.image.get_width()
         self.height = self.image.get_height()
         self.collision = pygame.Rect(self.x, self.y, self.width, self.height)
@@ -86,8 +87,8 @@ class Carte:
                 img = pygame.image.load(self.imagePath)
                 img = pygame.transform.scale(img, (img.get_width() * scale*7, img.get_height() * scale*7))
                 surface.blit(img, (0, 0))
-        else:
-            surface.blit(self.dos, (self.x, self.y))
+        if self.is_hiden:
+            surface.blit(self.dos, (self.x-4, self.y-5))
     def rescale(self,scale):
         image = pygame.image.load(self.imagePath)
         self.image = pygame.transform.scale(image, (image.get_width() * scale, image.get_height() * scale))
@@ -161,8 +162,8 @@ class Client:
         self.client.connect((ip, port))
     def send(self, message):
         self.client.send(pickle.dumps(message))
-    def receve(self):
-        global Server_Mesage
+    def receve(self):        
+        global Server_Mesage, isJoueur
         while True:
             
             message = pickle.loads(self.client.recv(2048))
@@ -173,16 +174,29 @@ class Client:
                     self.client.close()
                     break
                 elif message[0:2] == '¤j':
-                    isJoueur = message.split(' ')[1]
+                    isJoueur = int(message.split(' ')[1])
                     
                 print(message)
                 
             
-            
+            elif isinstance(message, dict):
+                if message['type'] == 'move':
+                    if message['isJoueur'] == isJoueur:
+                        for i in plateau.joueur1.get_deck():
+                            if i.name == message['carte'].name:
+                                i.x = message['carte'].x
+                                i.y = message['carte'].y
+                    else:
+                        for i in plateau.joueur2.get_deck():
+                            if i.name == message['carte'].name:
+                                i.x = message['carte'].x
+                                i.y = message['carte'].y
+                
                 
             elif isinstance(message, Packet_carte):
                 message = packet_carte_to_carte(message)
                 message.rescale(scale)
+                print(message.camps)
                 print(message)
                 Server_Mesage = message
                 
@@ -245,8 +259,6 @@ class Pioche:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 return True
                         
-        
-
 
         
         
@@ -302,8 +314,10 @@ dictscale ={
 }
 scale = dictscale[str(win_w)+"x"+str(win_h)]
 
-
+isJoueur = 0
 cartes = []
+
+
 
 with open('DataPerso.csv', 'r') as file:
     reader = csv.reader(file, skipinitialspace=True,delimiter=',', quoting=csv.QUOTE_NONE)
@@ -312,17 +326,21 @@ with open('DataPerso.csv', 'r') as file:
             continue
         else:
             cartes.append(Carte(0,0,row[0],row[1],row[2],row[3],row[4],row[5],row[6],scale = scale))
+            
                     
 Server_Mesage = None
-
+connected = False
 
 Atsouky = Joueur("Atsouky",[],Mp=10)
 adv = Joueur("adv",[])
 
 plateau = Plateau(Atsouky,adv,cartes)
 
-from threading import Thread
-client = Client('127.0.0.1', 5555)
+while not connected:
+    try:
+        client = Client('127.0.0.1', 5555)
+        connected = True
+    except:pass
 client_tread = Thread(target=client.receve)
 client_tread.start()
 client.send('/name Atsouky')
@@ -356,7 +374,12 @@ while True:
                                 for i in plateau.emplacements:
                                     if select.collision.colliderect(i) and moving:
                                         select.move(i.x,i.y)
-                                client.send(f'¤move {select.name} {select.x} {select.y}')
+                                di = {
+                                    'carte': carte_to_packet_carte(select),
+                                    'type': 'move',
+                                    'isJoueur': isJoueur
+                                }
+                                client.send(di)
                             moving = False
                         
             
@@ -374,19 +397,30 @@ while True:
             
         if plateau.pioche.handle_events(fenetre,event):
             #plateau.joueur1.piocher(plateau.pioche)
-            client.send('¤pioche')
+            client.send('¤pioche '+str(isJoueur))
     
-    if moving:
+    if moving and select.camps == isJoueur:
         select.move(event.pos[0]-select.width/2,event.pos[1]-select.height/2)
     
     
     if Server_Mesage is not None:
-        plateau.joueur1.add_cartes([Server_Mesage])
+        print(Server_Mesage.camps)
+        print(isJoueur)
+        if Server_Mesage.camps == isJoueur:
+            print("add to joueur 1")
+            plateau.joueur1.add_cartes([Server_Mesage])
+        elif Server_Mesage.camps != isJoueur:
+            print("add to joueur 2")
+            plateau.joueur2.add_cartes([Server_Mesage])
         Server_Mesage = None
     
     for carte in plateau.joueur1.get_deck():
             carte.draw(fenetre,scale)
             carte.handle_events(fenetre, plateau.joueur1.Mp)
+            
+    for carte in plateau.joueur2.get_deck():
+            carte.draw(fenetre,scale)
+            carte.handle_events(fenetre, plateau.joueur2.Mp)
     
     plateau.draw(fenetre)
     plateau.pioche.draw(fenetre)
