@@ -3,8 +3,11 @@ import pygame
 import csv
 
 from Serveur import Server
-from Client import Client
 
+
+import socket
+from threading import Thread
+import pickle
 
 
 class Carte:
@@ -15,6 +18,7 @@ class Carte:
         self.imagePath = image
         self.image = pygame.image.load(image)
         self.image = pygame.transform.scale(self.image, (self.image.get_width() * scale, self.image.get_height() * scale))
+        self.dos = pygame.image.load('data/dos/DosCarte.png')
         self.width = self.image.get_width()
         self.height = self.image.get_height()
         self.collision = pygame.Rect(self.x, self.y, self.width, self.height)
@@ -76,12 +80,20 @@ class Carte:
         surface.blit(text, (x, y))
     
     def draw(self, surface,scale):
-        surface.blit(self.image, (self.x, self.y))
-        if self.is_selected:
-            img = pygame.image.load(self.imagePath)
-            img = pygame.transform.scale(img, (img.get_width() * scale*7, img.get_height() * scale*7))
-            surface.blit(img, (0, 0))
-           
+        if not self.is_hiden:
+            surface.blit(self.image, (self.x, self.y))
+            if self.is_selected:
+                img = pygame.image.load(self.imagePath)
+                img = pygame.transform.scale(img, (img.get_width() * scale*7, img.get_height() * scale*7))
+                surface.blit(img, (0, 0))
+        else:
+            surface.blit(self.dos, (self.x, self.y))
+    def rescale(self,scale):
+        image = pygame.image.load(self.imagePath)
+        self.image = pygame.transform.scale(image, (image.get_width() * scale, image.get_height() * scale))
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
+        self.collision = pygame.Rect(self.x, self.y, self.width, self.height)
     
     def handle_events(self, surface, mp):
         if self.is_selected:
@@ -108,11 +120,73 @@ class Carte:
                 
                 if pygame.mouse.get_pressed()[0] :#and mp > 0:
                     pass
+
+class Packet_carte:
+    def __init__(self, x ,y, name, image, pv, mp, pa, pw, classe, lien=[], camps=None, pw_value=None,is_Stratège=False, is_hiden=True, scale=0.25):
+        self.data = {
+            'x': x,
+            'y': y,
+            'name': name,
+            'image': image,
+            'pv': pv,
+            'mp': mp,
+            'pa': pa,
+            'pw': pw,
+            'classe': classe,
+            'lien': lien,    
+            'camps': camps,
+            'pw_value': pw_value,
+            'is_Stratège': is_Stratège,
+            'is_hiden': is_hiden ,   
+            'scale': scale
+        }
+    def __repr__(self):
+        return 'Packet carte send or receive'
+                
+def packet_carte_to_carte(message):
+    data = message.data
+    return Carte(data['x'],data['y'],data['name'],data['image'],data['pv'],data['mp'],data['pa'],data['pw'],data['classe'],data['lien'],data['camps'],data['pw_value'],data['is_Stratège'],data['is_hiden'],data['scale'])
+    
+def carte_to_packet_carte(carte):
+    return Packet_carte(carte.x,carte.y,carte.name,carte.image,carte.pv,carte.mp,carte.pa,carte.pw,carte.classe,carte.lien,carte.camps,carte.pw_value,carte.is_Stratège,carte.is_hiden,carte.scale)    
+
+
+
+
+
+
+class Client:
+    def __init__(self, ip, port):
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client.connect((ip, port))
+    def send(self, message):
+        self.client.send(pickle.dumps(message))
+    def receve(self):
+        global Server_Mesage
+        while True:
+            
+            message = pickle.loads(self.client.recv(2048))
+            if isinstance(message, str):
+                if message == '?scale':
+                    self.send('? '+str(scale))
+                elif message == 'q':
+                    self.client.close()
+                    break
+                elif message[0:2] == '¤j':
+                    isJoueur = message.split(' ')[1]
                     
-        
-    
-    
-    
+                print(message)
+                
+            
+            
+                
+            elif isinstance(message, Packet_carte):
+                message = packet_carte_to_carte(message)
+                message.rescale(scale)
+                print(message)
+                Server_Mesage = message
+                
+                
 
 class Joueur:
     def __init__(self, name, deck, Mp = None):
@@ -183,20 +257,33 @@ class Plateau:
         self.joueur2 = joueur2
         self.pioche = Pioche(cartes)
         w,h = cartes[0].width,cartes[0].height
-        self.emplacement1 = pygame.Rect(win_w-w-115, win_h-h, w, h)
-        self.emplacement2 = pygame.Rect(win_w-w*2-130, win_h-h, w, h)
-        self.emplacement3 = pygame.Rect(win_w-w*3-145, win_h-h, w, h)
-        self.emplacement4 = pygame.Rect(win_w-w*3-w//4, win_h-h*2-15, w, h)
-        self.emplacement5 = pygame.Rect(win_w-w*4-w//2, win_h-h*2-15, w, h)
-        self.emplacement6 = pygame.Rect(win_w-w*2-130, win_h-h*3-30, w, h)
+        cx,cy = win_w-w-115, win_h-h
+        
+        self.emplacement1 = pygame.Rect(cx, cy, w, h)
+        self.emplacement2 = pygame.Rect(cx-w-20, win_h-h, w, h)
+        self.emplacement3 = pygame.Rect(cx-w*2-40, win_h-h, w, h)
+        self.emplacement4 = pygame.Rect(cx-w//2-10, win_h-h*2-15, w, h)
+        self.emplacement5 = pygame.Rect(cx-w//2-w-30, win_h-h*2-15, w, h)
+        self.emplacement6 = pygame.Rect(cx-w-20, win_h-h*3-30, w, h)
         
         self.emplacements = [self.emplacement1, self.emplacement2, self.emplacement3, self.emplacement4, self.emplacement5, self.emplacement6]
+        
+        cx,cy = win_w-w-115, 20
+        self.emplacement1e = pygame.Rect(cx, cy, w, h)
+        self.emplacement2e = pygame.Rect(cx-w-20, cy, w, h)
+        self.emplacement3e = pygame.Rect(cx-w*2-40, cy, w, h)
+        self.emplacement4e = pygame.Rect(cx-w//2-10, cy+h+15, w, h)
+        self.emplacement5e = pygame.Rect(cx-w//2-w-30, cy+h+15, w, h)
+        self.emplacement6e = pygame.Rect(cx-w-20, cy+h*2+30, w, h)
+        
+        self.emplacementsE = [self.emplacement1e, self.emplacement2e, self.emplacement3e, self.emplacement4e, self.emplacement5e, self.emplacement6e]
         
         
     def draw(self, surface):
         for i in self.emplacements:
+            pygame.draw.rect(surface, (0,0,255), i, 2)
+        for i in self.emplacementsE:
             pygame.draw.rect(surface, (255,0,0), i, 2)
-        
 
 
 
@@ -210,7 +297,7 @@ pygame.init()
 fenetre = pygame.display.set_mode((0,0),pygame.NOFRAME)
 win_w, win_h = pygame.display.get_window_size()
 dictscale ={
-    "1980x1080":0.15,
+    "1920x1080":0.15,
     "1366x768":0.10,
 }
 scale = dictscale[str(win_w)+"x"+str(win_h)]
@@ -226,7 +313,7 @@ with open('DataPerso.csv', 'r') as file:
         else:
             cartes.append(Carte(0,0,row[0],row[1],row[2],row[3],row[4],row[5],row[6],scale = scale))
                     
-
+Server_Mesage = None
 
 
 Atsouky = Joueur("Atsouky",[],Mp=10)
@@ -236,7 +323,8 @@ plateau = Plateau(Atsouky,adv,cartes)
 
 from threading import Thread
 client = Client('127.0.0.1', 5555)
-Thread(target=client.receve).start()
+client_tread = Thread(target=client.receve)
+client_tread.start()
 client.send('/name Atsouky')
 
 
@@ -254,6 +342,7 @@ while True:
             exit()
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE or event.key == pygame.K_w:
+                client.send('q')
                 exit()
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
@@ -267,6 +356,7 @@ while True:
                                 for i in plateau.emplacements:
                                     if select.collision.colliderect(i) and moving:
                                         select.move(i.x,i.y)
+                                client.send(f'¤move {select.name} {select.x} {select.y}')
                             moving = False
                         
             
@@ -290,7 +380,9 @@ while True:
         select.move(event.pos[0]-select.width/2,event.pos[1]-select.height/2)
     
     
-    
+    if Server_Mesage is not None:
+        plateau.joueur1.add_cartes([Server_Mesage])
+        Server_Mesage = None
     
     for carte in plateau.joueur1.get_deck():
             carte.draw(fenetre,scale)

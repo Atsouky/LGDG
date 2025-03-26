@@ -3,6 +3,7 @@ from threading import Thread
 import pickle
 import csv
 
+nb_joueurs = 0
 
 
 class Server:
@@ -17,33 +18,57 @@ class Server:
         
         while True:
             client, address = self.serveur.accept()
-            Client = {'ip':address, 'client':client , 'name':None}
+            Client = {'ip':address, 'client':client , 'name':None, 'scale': None}
             self.clients.append(Client)
             Thread(target=self.handle_new_client, args=(Client, )).start()
     
     def broadcast(self, message):
         for client in self.clients:
                 client['client'].send(pickle.dumps(message))
-    
+    def Send(self, message, client):
+        client['client'].send(pickle.dumps(message))
     def receve(self, client):
         global pioche
         while True:
             message = pickle.loads(client['client'].recv(2048))
             if message == 'q':
+                self.Send('q',client)
+                nb_joueurs -= 1
                 self.clients.remove(client)
-                break             
+                break
+            elif message[0] == '?':
+                client['scale'] = float(message.split(' ')[1])
+                print(client['scale'])  
+            elif message[0] == '¤':
+                if message == '¤pioche':
+                    message = pioche.piocher()
+                    self.broadcast(message)
+                elif message == '¤move':
+                    name , x , y = message.split(' ')
+                    carte_piocher[name].x , carte_piocher[name].y = x , y
+                    self.broadcast(carte_piocher[name])
+                    
+            
+            
+                   
             elif message.split(' ')[0] == '/name':
                 client['name'] = message.split(' ')[1]
             
-            elif message == '¤pioche':
-                message =pioche.piocher()
-                self.broadcast(message)
+            
+            
             
             
             
             
     def handle_new_client(self, client):
         print(f'Connection from {client["ip"]}')
+        
+        self.Send('?scale',client)
+        while client['scale'] == None or client['scale'] == '':
+            message = pickle.loads(client['client'].recv(2048))
+            client['scale'] = message
+        nb_joueurs += 1
+        self.Send('¤j '+str(nb_joueurs),client)
         Thread(target=self.receve, args=(client, )).start()
         self.broadcast(f'{client["ip"]} connected')
 
@@ -54,7 +79,7 @@ from random import shuffle
 
 
 
-class Card:
+class Packet_carte:
     def __init__(self, x ,y, name, image, pv, mp, pa, pw, classe, lien=[], camps=None, pw_value=None,is_Stratège=False, is_hiden=True, scale=0.25):
         self.data = {
             'x': x,
@@ -73,6 +98,8 @@ class Card:
             'is_hiden': is_hiden ,   
             'scale': scale
         }
+    def __repr__(self):
+        return 'Packet carte send or receive '
                     
 class Pioche:
     def __init__(self, cartes,scale,win_w):
@@ -88,7 +115,8 @@ class Pioche:
     def piocher(self):
         if self.cartes:
             carte = self.cartes.pop()
-            carte.x, carte.y=self.win_w//2+carte.width+carte.width//2,0
+            carte.x, carte.y=self.win_w//2+200,0
+            carte_piocher[str(carte.name)] = carte
             return carte
         print("La pioche est vide")
         return None
@@ -113,12 +141,12 @@ def load_carde(scale):
             if id == 0 or id == 1 or row == [] :
                 continue
             else:
-                cartes.append(Card(0,0,row[0],row[1],row[2],row[3],row[4],row[5],row[6],scale = scale))
+                cartes.append(Packet_carte(0,0,row[0],row[1],row[2],row[3],row[4],row[5],row[6],scale = scale))
     return cartes
 
 
 
-
+carte_piocher = {}
 
 
 def main():
@@ -130,7 +158,7 @@ def main():
 
     server = Server('127.0.0.1', 5555)
     Thread(target=server.listen).start()
-    print('server on')
+    
     
     
 if __name__ == '__main__':
