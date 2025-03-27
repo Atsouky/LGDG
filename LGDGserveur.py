@@ -1,6 +1,37 @@
 import socket
 from threading import Thread
-import pickle
+import pickle,csv
+
+def load_cartes():
+    cartes = []
+    with open('DataPerso.csv', 'r') as file:
+        reader = csv.reader(file, skipinitialspace=True,delimiter=',', quoting=csv.QUOTE_NONE)
+        for id,row in enumerate(reader):
+            if id == 0 or id == 1 or row == [] :
+                continue
+            else:
+                cartes.append(Carte(0,row[0],row[1],(row[2],row[3],row[4],row[5]),row[6]))
+    return cartes
+
+class Carte:
+    def __init__(self, Emplacement, name, image, stats, classes,camps=None, hiden=False):
+        self.Emplacement = Emplacement
+        self.name = name
+        self.image = image
+        self.classes = classes
+        self.pv, self.pm, self.pa, self.pw = stats
+        self.camps = camps
+        self.hiden = hiden
+    def get_all_info(self):
+        return {
+            'Emplacement': self.Emplacement,
+            'name': self.name,
+            'image': self.image,
+            'classes': self.classes,
+            'stats': (self.pv, self.pm, self.pa, self.pw),
+            'camps': self.camps,
+            'hiden': self.hiden
+        }
 
 class Plateau:
     def __init__(self, joueur1, joueur2, cartes):
@@ -29,15 +60,25 @@ class Plateau:
 
         self.emplacementsE = [self.emplacement1e, self.emplacement2e, self.emplacement3e, self.emplacement4e, self.emplacement5e, self.emplacement6e]
 
-
-
+class Pioche_server:
+    def __init__(self):
+        self.cartes = load_cartes()
+        self.mélanger()
+    
+    def mélanger(self):
+        import random
+        random.shuffle(self.cartes)
+        
+    def piocher(self):
+        return self.cartes.pop()
 
 
 nb_joueurs = 0
 class Server:
     clients = []
-    def __init__(self, ip, port):
+    def __init__(self, ip, port, pioche):
         self.serveur = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.pioche = pioche
         self.serveur.bind((ip, port))
         self.serveur.listen(2)
         print('Server online')
@@ -46,12 +87,21 @@ class Server:
         
         while True:
             client, address = self.serveur.accept()
-            Client = {'ip':address, 'client':client , 'name':None, 'scale': None, 'isJoueur': None , 'resolution': None}
+            Client = {'ip':address, 'client':client , 'name':None, 'scale': None, 'player': None , 'resolution': None}
             self.clients.append(Client)
             Thread(target=self.handle_new_client, args=(Client, )).start()
     
-    def broadcast(self, message):
-        for client in self.clients:
+    def broadcast(self, message, client_in=None):
+        if message['type'] == 'Pioche':
+            for client in self.clients:
+                if client_in == client['player']:
+                    message['hiden'] = False
+                    client['client'].send(pickle.dumps(message))
+                else:
+                    message['hiden'] = True
+                    client['client'].send(pickle.dumps(message))
+        else:
+            for client in self.clients:
                 client['client'].send(pickle.dumps(message))
                           
     
@@ -69,23 +119,27 @@ class Server:
                 self.clients.remove(client)
                 break
             
+            elif isinstance(message, dict):
+                
+                if message["type"] == 'Start':
+                    client["name"] = message["name"]
+                    client['resolution'] = message['resolution']
+                
+                elif message["type"] == 'Pioche':
+                    self.broadcast({'type':'Pioche', 'data':self.pioche.piocher().get_all_info()}, message['player'])
+            
             else:
                 self.broadcast(message)
 
     def handle_new_client(self, client):
         global nb_joueurs
         print(f'Connection from {client["ip"]}')
-        nb_joueurs += 1
-        client['isJoueur'] = nb_joueurs
-        data = {'type': "Name", 'data': None, 'player': nb_joueurs, 'resolution': None}
-        self.Send(data,client)
-        while client['name'] == None or client['name'] == '':
-            message = pickle.loads(client['client'].recv(2048))
-            client['name'] = message
-            client['resolution'] = message['resolution']
+        self.Send({'type':'Start', 'player':nb_joueurs}, client)
         Thread(target=self.receve, args=(client, )).start()
-        self.broadcast(f'{client["ip"]} connected')
-        
-server = Server('127.0.0.1', 5555)
+        self.broadcast({'type':'info', 'data':client["ip"]})
+
+
+pioche = Pioche_server()     
+server = Server('127.0.0.1', 5555, pioche)
 Thread(target=server.listen).start()
 
