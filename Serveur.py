@@ -178,7 +178,7 @@ def load_carde(scale):
 
 carte_piocher = {}
 
-from pyngrok import ngrok
+
 def main():
     global pioche
     
