@@ -2,19 +2,10 @@ import socket
 from threading import Thread
 import pickle,csv
 
-def load_cartes():
-    cartes = []
-    with open('DataPerso.csv', 'r') as file:
-        reader = csv.reader(file, skipinitialspace=True,delimiter=',', quoting=csv.QUOTE_NONE)
-        for id,row in enumerate(reader):
-            if id == 0 or id == 1 or row == [] :
-                continue
-            else:
-                cartes.append(Carte(0,row[0],row[1],(row[2],row[3],row[4],row[5]),row[6]))
-    return cartes
+
 
 class Carte:
-    def __init__(self, Emplacement, name, image, stats, classes,camps=None, hiden=False):
+    def __init__(self, Emplacement, name, image, stats, classes,camps=None, hiden=False, is_strategy=False):
         self.Emplacement = Emplacement
         self.name = name
         self.image = image
@@ -24,13 +15,12 @@ class Carte:
         self.hiden = hiden
     def get_all_info(self):
         return {
-            'Emplacement': self.Emplacement,
+            'emplacement': self.Emplacement,
             'name': self.name,
             'image': self.image,
-            'classes': self.classes,
             'stats': (self.pv, self.pm, self.pa, self.pw),
             'camps': self.camps,
-            'hiden': self.hiden
+            'hiden': None
         }
 
 class Plateau:
@@ -60,9 +50,11 @@ class Plateau:
 
         self.emplacementsE = [self.emplacement1e, self.emplacement2e, self.emplacement3e, self.emplacement4e, self.emplacement5e, self.emplacement6e]
 
+    
+    
 class Pioche_server:
     def __init__(self):
-        self.cartes = load_cartes()
+        self.cartes = self.load_cartes()
         self.mélanger()
     
     def mélanger(self):
@@ -70,7 +62,20 @@ class Pioche_server:
         random.shuffle(self.cartes)
         
     def piocher(self):
+        if self.cartes == []:
+            return None
         return self.cartes.pop()
+
+    def load_cartes(self):
+        cartes = []
+        with open('DataPerso.csv', 'r') as file:
+            reader = csv.reader(file, skipinitialspace=True,delimiter=',', quoting=csv.QUOTE_NONE)
+            for id,row in enumerate(reader):
+                if id == 0 or id == 1 or row == [] :
+                    continue
+                else:
+                    cartes.append(Carte(0,row[0],row[1],(row[2],row[3],row[4],row[5]),row[6]))
+        return cartes
 
 
 nb_joueurs = 0
@@ -91,15 +96,24 @@ class Server:
             self.clients.append(Client)
             Thread(target=self.handle_new_client, args=(Client, )).start()
     
-    def broadcast(self, message, client_in=None):
-        if message['type'] == 'Pioche':
-            for client in self.clients:
-                if client_in == client['player']:
-                    message['hiden'] = False
-                    client['client'].send(pickle.dumps(message))
-                else:
-                    message['hiden'] = True
-                    client['client'].send(pickle.dumps(message))
+    def broadcast(self, message):
+        if isinstance(message, dict):
+            if message['type'] == 'Pioche':
+                client_in = message['player']
+                
+                for client in self.clients:
+                    print(client_in, client['player'])
+                    if client_in == client['player']:
+                        message['data']['hiden'] = False
+                        message['data']['camps'] = client_in
+                        client['client'].send(pickle.dumps(message))
+                    elif client_in != client['player']:
+                        
+                        message['data']['hiden'] = True
+                        message['data']['camps'] = client_in
+                        client['client'].send(pickle.dumps(message))
+                    else:
+                        print("error pioche")
         else:
             for client in self.clients:
                 client['client'].send(pickle.dumps(message))
@@ -124,9 +138,13 @@ class Server:
                 if message["type"] == 'Start':
                     client["name"] = message["name"]
                     client['resolution'] = message['resolution']
+                    client['player'] = message['player']
                 
                 elif message["type"] == 'Pioche':
-                    self.broadcast({'type':'Pioche', 'data':self.pioche.piocher().get_all_info()}, message['player'])
+                    carte = self.pioche.piocher()
+                    if carte != None:
+                        
+                        self.broadcast({'type':'Pioche', 'data':carte.get_all_info(), 'player':message['player']})
             
             else:
                 self.broadcast(message)
@@ -134,6 +152,7 @@ class Server:
     def handle_new_client(self, client):
         global nb_joueurs
         print(f'Connection from {client["ip"]}')
+        nb_joueurs += 1
         self.Send({'type':'Start', 'player':nb_joueurs}, client)
         Thread(target=self.receve, args=(client, )).start()
         self.broadcast({'type':'info', 'data':client["ip"]})
@@ -143,3 +162,8 @@ pioche = Pioche_server()
 server = Server('127.0.0.1', 5555, pioche)
 Thread(target=server.listen).start()
 
+while True:
+    message = input('> ')
+    if message != '':
+        if message == 'q':
+            server.broadcast(message)

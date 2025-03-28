@@ -1,3 +1,3 @@
-start python Serveur.py
-start python Client.py
-start python Client.py
+start python LGDGserveur.py
+start python LGDG.py
+start python LGDG.py
