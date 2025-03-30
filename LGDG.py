@@ -7,8 +7,9 @@ import csv
     
 
 class Carte:
-    def __init__(self,emplacement,nom,imagepath,stats,camps=None,hiden=False,is_selected = False, scale=0.10):
-        self.emplacement = emplacement
+    def __init__(self,x,y,nom,imagepath,stats,camps=None,hiden=False,is_selected = False, scale=0.10):
+        self.x = x
+        self.y = y
         self.nom = nom
         self.pv, self.pm, self.pa, self.pw = stats
         self.scale = scale
@@ -29,12 +30,12 @@ class Carte:
         self.collision = None
     
     
-    def draw(self,surface,x,y,who):
+    def draw(self,surface,who):
         
         if who == self.camps:
             
             if not self.hiden:
-                surface.blit(self.img,(x,y))
+                surface.blit(self.img,(self.x,self.y))
                 if not self.is_selected:
                     imgscale = pygame.image.load(self.imagepath)
                     imgscale = pygame.transform.scale(imgscale, (imgscale.get_width() * self.scale*6, imgscale.get_height() * self.scale*6))
@@ -42,13 +43,13 @@ class Carte:
                 
                     
             else:
-                surface.blit(self.dosimg,(x,y))
+                surface.blit(self.dosimg,(self.x,self.y))
         else:
             if not self.hiden:
-                surface.blit(self.img,(x,y))
+                surface.blit(self.img,(self.x,self.y))
                 
             else:
-                surface.blit(self.dosimg,(x,y))
+                surface.blit(self.dosimg,(self.x,self.y))
 
             
     def handle_events(self, event):
@@ -72,52 +73,6 @@ class Pioche:
                 return True
             
 
-class Table:
-    def __init__(self,carte,camp):
-        self.carte = carte
-        self.camps = camp
-        self.plateau = Plateau()
-        self.dict = {
-            '1':self.plateau.deck1,
-            '2':self.plateau.deck2,
-            '3':self.plateau.deck3,
-            '4':self.plateau.deck4,
-            '5':self.plateau.deck5,
-            '6':self.plateau.deck6,
-            '7':self.plateau.deck7
-        }
-        self.dictE = {
-            '1':self.plateau.decke1,
-            '2':self.plateau.decke2,
-            '3':self.plateau.decke3,
-            '4':self.plateau.decke4,
-            '5':self.plateau.decke5,
-            '6':self.plateau.decke6,
-            '7':self.plateau.decke7
-        }
-        self.deck = []
-        self.nbdeck1 = 0
-        self.nbdeck2 = 0
-        self.deckE = []
-    def draw(self,surface):
-        for i in self.carte:
-            if i.emplacement == 'deck':
-                if i.camps == self.camps:
-                    self.deck.append(i)
-                    self.nbdeck1 += 1
-                    
-                    i.draw(surface,self.dict[str(self.nbdeck1)][0],self.dict[str(self.nbdeck1)][1],self.camps)
-                    
-                else:
-                    self.deckE.append(i)
-                    self.nbdeck2 += 1
-                    
-                    i.draw(surface,self.dictE[str(self.nbdeck2)][0],self.dictE[str(self.nbdeck2)][1],self.camps)
-                    
-            
-    
-    def add(self,carte):
-        self.carte.append(carte)
 
 
 class Plateau:
@@ -218,7 +173,7 @@ class Client:
                         carte = load_cartes(message['data'],self.scale)
                         print(message['data'])
                         message['data']['emplacement'] = 'deck'
-                        table.add(carte)
+                        in_game_cartes.append(carte)
                         sending = False
                     
             elif message == 'q':
@@ -266,7 +221,7 @@ i=None
 plateau = Plateau()
 
 Thread(target=client.receve).start()
-table = Table(in_game_cartes,client.client_data['player'])
+
 
 while True:
     window.fill((0,0,0))  
@@ -285,7 +240,7 @@ while True:
         
     
         if pioche.handle_events(event):
-            table.camps = client.client_data['player']
+            
             client.send({"type": "Pioche", "data": None, "player": client.client_data['player']})
         
         for carte in in_game_cartes:
@@ -293,8 +248,10 @@ while True:
                 selected = carte
                 selected.is_selected = not selected.is_selected
     
+    for i in in_game_cartes:
+        i.draw(window)
+    
     pioche.draw(window)     
-    table.draw(window)
     plateau.draw(window)         
     
     pygame.display.update()
