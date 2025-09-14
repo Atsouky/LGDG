@@ -1,0 +1,122 @@
+{
+    "Ariane": {
+        "name":"Ariane",
+        "stats":{"pv": 10,"pa": 35,"pm": 3,"pw": 2},
+        "class": "Attaquant",
+        "lien": ["Eleo","Maï rose","Sofia"],
+        "pouvoir": {"name":"téléport","args": ""},
+        "pwdecription": "Se déplace n'import où"
+    },
+    "Aude":{
+        "name":"Aude",
+        "stats":{"pv": 40,"pa": 10,"pm": 3,"pw": 1},
+        "class": "Défenseur",
+        "lien": ["Eleo"],
+        "pouvoir": {"name":"soin","args": "10"},
+        "pwdecription": "Soigne 10 PV"
+    },
+    "Dimitri":{
+        "name":"Dimitri",
+        "stats":{"pv": 35,"pa": 5,"pm": 3.5,"pw": 1},
+        "class": "Défenseur",
+        "lien": ["Lié", "Sosara", "Vivalie"],
+        "pouvoir": {"name":"dellien","args": ""},
+        "pwdecription": "Coupe tous les liens d'une carte"
+    },
+    "Edwin":{
+        "name":"Edwin",
+        "stats":{"pv": 25,"pa": 10,"pm": 1,"pw": 1},
+        "class": "Neutre",
+        "lien": ["Lié", "Sosara", "Vivalie", "Zéréphyr"],
+        "pouvoir": {"name":"swap","args": ""},
+        "pwdecription": "Echange deux cartes"
+    },
+    "Eleo":{
+        "name":"Eleo",
+        "stats":{"pv": 20,"pa": 20,"pm": 3,"pw": 1},
+        "class": "Défenseur",
+        "lien": ["Aude","Ariane","Mike"],
+        "pouvoir": {"name":"freeze","args": "10"},
+        "pwdecription": "Immobilise un personnage mais perd 10 PV"
+    },
+    "Lie":{
+        "name":"Lié",
+        "stats":{"pv": 15,"pa": 30,"pm": 2,"pw": 4},
+        "class": "Attaquant",
+        "lien": ["Dimitri","Sosara","Vivalie"],
+        "pouvoir": {"name":"défausse","args": ""},
+        "pwdecription": "Défausse une carte au choix avec elle"
+    },
+    "MaiRose":{
+        "name":"Maï rose",
+        "stats":{"pv": 25,"pa": 20,"pm": 3,"pw": 2},
+        "class": "Pouvoir",
+        "lien": ["Ariane"],
+        "pouvoir": {"name":"dellien","args": ""},
+        "pwdecription": "Coupe tous les liens d'une carte"
+    },
+    "Mike":{
+        "name":"Mike",
+        "stats":{"pv": 20,"pa": 25,"pm": 4,"pw": 3},
+        "class": "Attaquant",
+        "lien": ["Eleo"],
+        "pouvoir": {"name":"addlien","args": ""},
+        "pwdecription": "Fait un lien"
+    },
+    "Sofia":{
+        "name":"Sofia",
+        "stats":{"pv": 25,"pa": 25,"pm": 1,"pw": 3},
+        "class": "Neutre",
+        "lien": ["Ariane","Aude"],
+        "pouvoir": {"name":"delpw","args": ""},
+        "pwdecription": "Supprime un pouvoir d'une carte"
+    },
+    "Sosara":{
+        "name":"Sosara",
+        "stats":{"pv": 20,"pa": 20,"pm": 3.5,"pw": 2},
+        "class": "Pouvoir",
+        "lien": ["Dimitri","Lié","Vivalie","Mérié"],
+        "pouvoir": {"name":"soin","args": "20"},
+        "pwdecription": "Soigne 20 PV"
+    },
+    "Vivalie":{
+        "name":"Vivalie",
+        "stats":{"pv": 3,"pa": 10,"pm": 4,"pw": 0},
+        "class": "Robot",
+        "lien": ["Dimitri","Lié","Sosara"],
+        "pouvoir": {"name":"","args": ""},
+        "pwdecription": "Pas de pouvoir"
+    },
+    "Zerephyr":{
+        "name":"Zéréphyr",
+        "stats":{"pv": 10,"pa": 35,"pm": 3,"pw": 2},
+        "class": "Attaquant",
+        "lien": ["Claire et Maria", "Héri et Zellie", "Sosara", "Vivalie"],
+        "pouvoir": {"name":"show","args": ""},
+        "pwdecription": "Toutes les cartes du plateau se retournent"
+    },
+    "Liz":{
+        "name":"Liz",
+        "stats":{"pv": 30,"pa": 10,"pm": 2,"pw": 3},
+        "class": "Neutre",
+        "lien": ["Paul", "Stones"],
+        "pouvoir": {"name":"show","args": ""},
+        "pwdecription": "Toutes les cartes du plateau se retournent"
+    },
+    "LomaMalo":{
+        "name":"Loma et Malo",
+        "stats":{"pv": 20,"pa": 20,"pm": 1,"pw": 0},
+        "class": "Neutre",
+        "lien": [],
+        "pouvoir": {"name":"","args": ""},
+        "pwdecription": "Pas de pouvoir"
+    },
+    "Papuchon":{
+        "name":"Papuchon",
+        "stats":{"pv": 20,"pa": 5,"pm": 0,"pw": 0},
+        "class": "Piège",
+        "lien": [],
+        "pouvoir": {"name":"Immortel","args": ""},
+        "pwdecription": "Si tué, revient dans la pioche, défaussée s'il n'y a plus de carte dans la pioche"
+    }
+}
