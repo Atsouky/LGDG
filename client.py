@@ -68,15 +68,26 @@ class Client:
                 self.player = response['content']
                 print("[SERVER RESPONSE]", self.player)
             
-            elif types == "pioche":
-                print("[SERVER RESPONSE]", response['content'])
-                if response['content']:
-                    for key in Game["hand"]:
-                        if Game["hand"][key].get() == None:
-                            Game["hand"][key].set(Card(response["content"]["name"],response["content"]["pv"]))
-                            break
-                        
 
+            
+            elif types == "Game":
+                global Game
+                Game = void_terrain()
+                content = response["content"]
+                p2 = ((self.player+2)%2)+1
+                for i in range(1,7):
+                    if content[self.player]['terrain'][i]:
+                        Game['terrain_p'][i].set(content[self.player]['terrain'][i][0],content[self.player]['terrain'][i][1])
+                    if content[p2]['terrain'][i]!=None and content[p2]['terrain'][i]!="hidden":
+                        Game['terrain_e'][i].set(content[p2]['terrain'][i][0],content[p2]['terrain'][i][1])
+                    elif content[p2]['terrain'][i]!="hidden":
+                        Game['terrain_e'][i].set("hidden",0)
+                for i,j in enumerate(content[self.player]['hand']):
+                    Game["hand"][i].set(j[0],j[1])
+                for i,j in enumerate(content[p2]['hand']):
+                    Game["ehand"][i].set(j[0],j[1])
+                
+            
             else:print("[SERVER RESPONSE]", response)
 
 
@@ -85,7 +96,10 @@ class Card:
     def __init__(self,name,pv):
         self.name = name
         self.pv = pv
-        sprite = pg.image.load(f"data/{name}.png")
+        if name!='hidden':
+            sprite = pg.image.load(f"data/{name}.png")
+        else:
+            sprite = pg.image.load(f"data/Dos des cartes/DosAdversaires.png")
         self.sprite = pg.transform.scale(sprite, (sprite.get_width() * global_scale, sprite.get_height() * global_scale))
     
     
@@ -226,8 +240,12 @@ def check_collision():
         
 
 
-Action = {"type":None,"from":None,"target":None}
+Action = {"type":None,"content":{"from":None,"target":None}}
 
+Poser = False
+Bouger = False
+Attaquer = False
+Pouvoir = False
 
 loop = True
 pioche = Pioche((screen_width//2 + card_width*2), (screen_height - card_height*2))
@@ -241,6 +259,7 @@ timer1 = time.monotonic()
 
 if __name__ == "__main__":
     Game = void_terrain()
+
     client = Client()
     thead = threading.Thread(target=client.client_session)
     thead.start()
@@ -267,26 +286,50 @@ if __name__ == "__main__":
                     
             if event.type == pg.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    if selected:
-                        selected_coli = selected.collision()
-                        if selected_coli:
-                            print(selected_coli)
                     
-                    col= check_collision()
-                    if col: 
-                        print(col)
-                        pkey,key = col["emplacement"]
-                        cx,cy = Game[pkey][key].coord()
-                        if col["card"]:
-                            selected = Selecteur(cx,cy,pkey,col['card'])
+                    if any([Poser,Attaquer,Bouger,Pouvoir]) is False:
+                        #quant selectioner
+                        if selected:
+                            selected_coli = selected.collision()
+                            if selected_coli:
+                                print(selected_coli)
+                                match selected_coli:
+                                    case "hand": 
+                                        Action["type"] = "poser"
+                                        Action['content']['from'] = col
+                                        Poser =    True
+                                        print(Action)
+                                    case "att" : Attaquer = True
+                                    case "move": Bouger =   True
+                                    case "pw"  : Pouvoir =  True
                         
+                        #emplacement
+                        col= check_collision()
+                        if col: 
+                            print(col)
+                            
+                            pkey,key = col["emplacement"]
+                            cx,cy = Game[pkey][key].coord()
+                            if col["card"]:
+                                selected = Selecteur(cx,cy,pkey,col['card'])
+                            
+                            
+                            
+                        #pioche
+                        if pioche.collision():
+                            if Game["hand"][7].get() == None:
+                                client.send({"type": "pioche", "content": ""})  
+                            else: print("Main pleine")
+                    
+                    elif Poser:
+                       
+                        col = check_collision()
                         
-                        
-                        
-                    if pioche.collision():
-                        if Game["hand"][7].get() == None:
-                            client.send({"type": "pioche", "content": ""})  
-                        else: print("Main pleine")
+                        while col is not None and col["emplacement"] != "terrain_p" and col['card'] != None:
+                            col = check_collision()
+                        Action['content']["target"] = col
+                        print(Action)
+                        Poser = False
 
 
         

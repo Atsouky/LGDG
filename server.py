@@ -2,6 +2,7 @@ import socket
 import threading
 import pickle
 import random
+import json
 
 
 HOST = "127.0.0.1"
@@ -39,13 +40,20 @@ def handle_client(conn, addr, nb):
                 break
             
             elif types == "ping":
+                
                 response = {"type": "ping", "content": nb}
                 send(conn, response)
+            
+            elif types == "poser":
+                fr = content["from"]
+                targ = content['target']
+                
             
             elif types == "pioche":
                 carte = pioche.piocher()
                 if carte:
-                    response = {"type": "pioche", "content": {"name":carte,"pv":10}}
+                    Game[nb]['hand'].append(pioche.piocher())
+                    response = {"type": "game", "content": Game_PX()}
                 else:
                     response = {"type": "pioche", "content": None}
                 send(conn, response)
@@ -105,11 +113,40 @@ class Pioche:
     def shuffle(self):
         random.shuffle(self.pioche)
 
+class Card:
+    def __init__(self,name,pv,hidden=True):
+        self.name = name
+        self.pv = pv
+        self.hidden = hidden
+        #...
+    def is_hidden(self):
+        return self.hidden
+    
+    def format(self):
+        pass
 
 
+Game = {1:{"hand":[],"terrain":{1:None,2:None,3:None,4:None,5:None,6:None}},
+        2:{"hand":[],"terrain":{1:None,2:None,3:None,4:None,5:None,6:None}}}
 
 
+def Game_PX(nb):
+    Gamep = Game
+    nbd = ((nb+2)%2)+1
+    Gamep[nbd]["hand"] = len(Game[nbd]["hand"])
+    for i in range(1,7):
+        obj = Game[nbd]["terrain"][i]
+        if obj:
+            if obj.is_hidden():
+                Gamep[nbd]["terrain"][i] = "Hidden"
+    return Gamep
+                
 
+
+def start_game():
+    for _ in range(3):
+        Game["1"]["hand"].append(pioche.pioche())
+        Game["2"]["hand"].append(pioche.pioche())
 
 
 
@@ -117,5 +154,6 @@ class Pioche:
 
 if __name__ == "__main__":
     pioche = Pioche()
+    start_game()
     start_server()
     
