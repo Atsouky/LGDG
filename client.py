@@ -53,7 +53,7 @@ class Client:
 
             # Receive response
             response = self.recv()
-            try:types = response['type']
+            try:types = response['type'];content = response["content"]
             except:pass
             
             
@@ -70,23 +70,15 @@ class Client:
             
 
             
-            elif types == "Game":
-                global Game
-                Game = void_terrain()
-                content = response["content"]
-                p2 = ((self.player+2)%2)+1
-                for i in range(1,7):
-                    if content[self.player]['terrain'][i]:
-                        Game['terrain_p'][i].set(content[self.player]['terrain'][i][0],content[self.player]['terrain'][i][1])
-                    if content[p2]['terrain'][i]!=None and content[p2]['terrain'][i]!="hidden":
-                        Game['terrain_e'][i].set(content[p2]['terrain'][i][0],content[p2]['terrain'][i][1])
-                    elif content[p2]['terrain'][i]!="hidden":
-                        Game['terrain_e'][i].set("hidden",0)
-                for i,j in enumerate(content[self.player]['hand']):
-                    Game["hand"][i].set(j[0],j[1])
-                for i,j in enumerate(content[p2]['hand']):
-                    Game["ehand"][i].set(j[0],j[1])
-                
+            elif types == "pioche":
+                for key in Game["hand"]:
+                    if Game["hand"][key].get() == None and content:
+                        print(content[1])
+                        Game["hand"][key].set(Card(content[0],content[1]))
+                        break
+            elif types == 'poser':
+                Game["hand"][content[0]].remove()
+                Game["terrain_p"][content[1]].set(Card(content[2],content[3]))
             
             else:print("[SERVER RESPONSE]", response)
 
@@ -128,7 +120,12 @@ class Emplacement:
     def coord(self):
         return (self.x,self.y)
     def get(self):
-        return self.content
+        if self.content:
+            return self.content
+    def get_name(self):
+        if self.content:
+            return self.content.get()
+    
     def set(self,content:Card):
         self.content = content
     def remove(self):
@@ -297,6 +294,7 @@ if __name__ == "__main__":
                                     case "hand": 
                                         Action["type"] = "poser"
                                         Action['content']['from'] = col
+                                        Action['content']['from']['card'] = col['card'].get()
                                         Poser =    True
                                         print(Action)
                                     case "att" : Attaquer = True
@@ -325,11 +323,19 @@ if __name__ == "__main__":
                        
                         col = check_collision()
                         
-                        while col is not None and col["emplacement"] != "terrain_p" and col['card'] != None:
+                        
+                        
+                        #TODO : Does not Work
+                        while col is not None and col["emplacement"][0] != "terrain_p" and col['card'] != None:
                             col = check_collision()
+                        
                         Action['content']["target"] = col
+                        
                         print(Action)
                         Poser = False
+                        client.send(Action)
+                        Action = {"type":None,"content":{"from":None,"target":None}}
+                        selected = None
 
 
         
